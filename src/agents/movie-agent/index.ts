@@ -44,7 +44,26 @@ class MovieAgentExecutor implements AgentExecutor {
         eventBus: ExecutionEventBus,
     ): Promise<void> => {
         this.cancelledTasks.add(taskId);
-        // The execute loop is responsible for publishing the final state
+        // Publish immediate cancellation event
+        const cancelledUpdate: TaskStatusUpdateEvent = {
+          kind: 'status-update',
+          taskId: taskId,
+          contextId: uuidv4(), // Generate context ID for cancellation
+          status: {
+            state: 'canceled',
+            message: {
+              kind: 'message',
+              role: 'agent',
+              messageId: uuidv4(),
+              parts: [{ kind: 'text', text: 'Movie information retrieval cancelled.' }],
+              taskId: taskId,
+              contextId: uuidv4(),
+            },
+            timestamp: new Date().toISOString(),
+          },
+          final: true,
+        };
+        eventBus.publish(cancelledUpdate);
     };
 
   async execute(
