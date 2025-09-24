@@ -38,14 +38,33 @@ class CoderAgentExecutor implements AgentExecutor {
         eventBus: ExecutionEventBus,
     ): Promise<void> => {
         this.cancelledTasks.add(taskId);
-        // The execute loop is responsible for publishing the final state
+        // Publish immediate cancellation event
+        const cancelledUpdate: TaskStatusUpdateEvent = {
+          kind: 'status-update',
+          taskId: taskId,
+          contextId: uuidv4(), // Generate context ID for cancellation
+          status: {
+            state: 'canceled',
+            message: {
+              kind: 'message',
+              role: 'agent',
+              messageId: uuidv4(),
+              parts: [{ kind: 'text', text: 'Code generation cancelled.' }],
+              taskId: taskId,
+              contextId: uuidv4(),
+            },
+            timestamp: new Date().toISOString(),
+          },
+          final: true,
+        };
+        eventBus.publish(cancelledUpdate);
     };
 
   async execute(
     requestContext: RequestContext,
     eventBus: ExecutionEventBus
   ): Promise<void> {
-    const userMessage = requestContext.userMessage;
+    const {userMessage} = requestContext;
     const existingTask = requestContext.task;
 
     const taskId = existingTask?.id || uuidv4();
@@ -151,7 +170,9 @@ class CoderAgentExecutor implements AgentExecutor {
 
       for await (const chunk of stream) {
         const codeChunk = chunk.output as CodeMessage | undefined;
-        if (!codeChunk?.files) continue;
+        if (!codeChunk?.files) {
+          continue;
+        }
 
         let currentFileOrderIndex = -1;
 

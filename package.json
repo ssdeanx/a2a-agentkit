@@ -17,6 +17,8 @@
   "dependencies": {
     "@a2a-js/sdk": "^0.3.4",
     "@genkit-ai/googleai": "^1.19.3",
+    "@genkit-ai/telemetry-server": "^1.19.3",
+    "@genkit-ai/tools-common": "^1.19.3",
     "@genkit-ai/vertexai": "^1.19.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",

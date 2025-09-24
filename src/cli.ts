@@ -68,7 +68,7 @@ function printAgentEvent(
   // Check if it's a TaskStatusUpdateEvent
   if (event.kind === "status-update") {
     const update = event as TaskStatusUpdateEvent; // Cast for type safety
-    const state = update.status.state;
+    const {state} = update.status;
     let stateEmoji = "❓";
     let stateColor: keyof typeof colors = "yellow";
 
