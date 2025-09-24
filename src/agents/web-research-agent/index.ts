@@ -18,6 +18,8 @@ import {
 } from "@a2a-js/sdk/server";
 import { A2AExpressApp } from "@a2a-js/sdk/server/express";
 import { ai } from "./genkit.js";
+import { WebSearchUtils, SearchResult, NewsSearchResult, ScholarSearchResult } from './web-search.js';
+import { ResearchFinding, SourceCitation, ResearchResult } from '../shared/interfaces.js';
 
 if (!process.env.GEMINI_API_KEY) {
   console.error("GEMINI_API_KEY environment variable not set.");
@@ -32,6 +34,11 @@ const webResearchPrompt = ai.prompt('web_research');
  */
 class WebResearchAgentExecutor implements AgentExecutor {
   private cancelledTasks = new Set<string>();
+  private webSearch: WebSearchUtils;
+
+  constructor() {
+    this.webSearch = new WebSearchUtils();
+  }
 
   public cancelTask = async (
     taskId: string,
@@ -157,13 +164,11 @@ class WebResearchAgentExecutor implements AgentExecutor {
     }
 
     try {
-      // 4. Call Genkit prompt
-      const response = await webResearchPrompt({
-        messages: messages,
-      });
+      // 4. Extract research query from user message
+      const userQuery = this.extractResearchQuery(userMessage);
 
-      // 5. Parse the response
-      const researchFindings = this.parseResearchFindings(response.text);
+      // 5. Perform comprehensive web research
+      const researchResults = await this.performWebResearch(userQuery, taskId, contextId, eventBus);
 
       // 6. Publish success status with findings
       const successUpdate: TaskStatusUpdateEvent = {
@@ -186,8 +191,8 @@ class WebResearchAgentExecutor implements AgentExecutor {
       };
       eventBus.publish(successUpdate);
 
-      // 7. Publish artifacts
-      if (researchFindings && researchFindings.sources) {
+      // 7. Publish artifacts with research findings
+      if (researchResults) {
         const artifact: Task = {
           kind: 'task',
           id: `${taskId}-findings`,
@@ -200,6 +205,7 @@ class WebResearchAgentExecutor implements AgentExecutor {
           metadata: {
             type: 'research-findings',
             researchId: researchId,
+            findings: researchResults
           },
           artifacts: [],
         };
@@ -242,6 +248,187 @@ class WebResearchAgentExecutor implements AgentExecutor {
       // Don't use fake fallback - return error information
       throw new Error(`Failed to parse research findings: ${e instanceof Error ? e.message : 'Invalid JSON response'}`);
     }
+  }
+
+  /**
+   * Extract research query from user message
+   */
+  private extractResearchQuery(userMessage: any): string {
+    // Extract text content from message parts
+    const textParts = userMessage.parts?.filter((p: any) => p.kind === 'text') || [];
+    const query = textParts.map((p: any) => p.text).join(' ').trim();
+
+    if (!query) {
+      throw new Error('No research query found in user message');
+    }
+
+    return query;
+  }
+
+  /**
+   * Perform comprehensive web research
+   */
+  private async performWebResearch(
+    query: string,
+    taskId: string,
+    contextId: string,
+    eventBus: ExecutionEventBus
+  ): Promise<ResearchResult> {
+    try {
+      // Update status to show research in progress
+      const progressUpdate: TaskStatusUpdateEvent = {
+        kind: 'status-update',
+        taskId: taskId,
+        contextId: contextId,
+        status: {
+          state: 'working',
+          message: {
+            kind: 'message',
+            role: 'agent',
+            messageId: uuidv4(),
+            parts: [{ kind: 'text', text: 'Searching web for relevant information...' }],
+            taskId: taskId,
+            contextId: contextId,
+          },
+          timestamp: new Date().toISOString(),
+        },
+        final: false,
+      };
+      eventBus.publish(progressUpdate);
+
+      // Perform general web search
+      const generalResults = await this.webSearch.search(query, { limit: 10 });
+
+      // Perform news search for current events
+      const newsResults = await this.webSearch.searchNews(query, { limit: 5 });
+
+      // Perform scholar search for academic content
+      const scholarResults = await this.webSearch.searchScholar(query, { limit: 5 });
+
+      // Update progress
+      const analysisUpdate: TaskStatusUpdateEvent = {
+        kind: 'status-update',
+        taskId: taskId,
+        contextId: contextId,
+        status: {
+          state: 'working',
+          message: {
+            kind: 'message',
+            role: 'agent',
+            messageId: uuidv4(),
+            parts: [{ kind: 'text', text: 'Analyzing and synthesizing findings...' }],
+            taskId: taskId,
+            contextId: contextId,
+          },
+          timestamp: new Date().toISOString(),
+        },
+        final: false,
+      };
+      eventBus.publish(analysisUpdate);
+
+      // Synthesize findings
+      return this.synthesizeFindings(query, generalResults, newsResults, scholarResults);
+
+    } catch (error) {
+      console.error('Web research failed:', error);
+      throw new Error(`Web research failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Synthesize findings from different search sources
+   */
+  private synthesizeFindings(
+    query: string,
+    generalResults: SearchResult,
+    newsResults: NewsSearchResult,
+    scholarResults: ScholarSearchResult
+  ): ResearchResult {
+    const findings: ResearchFinding[] = [];
+    const sources: SourceCitation[] = [];
+
+    // Process general web results
+    generalResults.results.forEach((result, index) => {
+      findings.push({
+        claim: result.title,
+        evidence: result.snippet,
+        confidence: result.credibility.score,
+        sources: [sources.length],
+        category: 'factual'
+      });
+
+      sources.push({
+        url: result.link,
+        title: result.title,
+        credibilityScore: result.credibility.score,
+        type: 'web',
+        accessedAt: new Date()
+      });
+    });
+
+    // Process news results
+    newsResults.articles.forEach((article, index) => {
+      findings.push({
+        claim: article.title,
+        evidence: article.snippet,
+        confidence: article.credibility.score,
+        sources: [sources.length],
+        category: 'factual'
+      });
+
+      sources.push({
+        url: article.link,
+        title: article.title,
+        author: article.source,
+        publicationDate: new Date(article.published),
+        credibilityScore: article.credibility.score,
+        type: 'news',
+        accessedAt: new Date()
+      });
+    });
+
+    // Process scholar results
+    scholarResults.papers.forEach((paper, index) => {
+      findings.push({
+        claim: paper.title,
+        evidence: paper.snippet,
+        confidence: 0.8, // Scholar papers generally have high credibility
+        sources: [sources.length],
+        category: 'factual'
+      });
+
+      sources.push({
+        url: paper.link,
+        title: paper.title,
+        author: paper.authors.join(', '),
+        publicationDate: paper.year ? new Date(paper.year, 0) : undefined,
+        credibilityScore: 0.9, // Academic papers have high credibility
+        type: 'academic',
+        accessedAt: new Date()
+      });
+    });
+
+      return {
+        topic: query,
+        findings,
+        sources,
+        methodology: 'Multi-source web research combining general search, news, and academic sources',
+        confidence: this.calculateOverallConfidence(findings),
+        generatedAt: new Date(),
+        processingTime: 0 // Would track actual processing time
+      };
+  }
+
+  /**
+   * Calculate overall confidence score
+   */
+  private calculateOverallConfidence(findings: ResearchFinding[]): number {
+    if (findings.length === 0) {
+      return 0;
+    }
+
+    const totalConfidence = findings.reduce((sum, finding) => sum + finding.confidence, 0);
+    return totalConfidence / findings.length;
   }
 }
 

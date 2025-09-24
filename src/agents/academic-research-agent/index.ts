@@ -18,6 +18,8 @@ import {
 } from "@a2a-js/sdk/server";
 import { A2AExpressApp } from "@a2a-js/sdk/server/express";
 import { ai } from "./genkit.js";
+import { AcademicSearchUtils, ComprehensiveSearchResult } from './academic-search.js';
+import { ResearchFinding, SourceCitation, ResearchResult } from '../shared/interfaces.js';
 
 if (!process.env.GEMINI_API_KEY) {
   console.error("GEMINI_API_KEY environment variable not set.");
@@ -32,6 +34,11 @@ const academicResearchPrompt = ai.prompt('academic_research');
  */
 class AcademicResearchAgentExecutor implements AgentExecutor {
   private cancelledTasks = new Set<string>();
+  private academicSearch: AcademicSearchUtils;
+
+  constructor() {
+    this.academicSearch = new AcademicSearchUtils();
+  }
 
   public cancelTask = async (
     taskId: string,
@@ -157,70 +164,14 @@ class AcademicResearchAgentExecutor implements AgentExecutor {
     }
 
     try {
-      // 4. Run the Genkit prompt for academic research
-      const response = await academicResearchPrompt(
-        {
-          researchDomain: 'multidisciplinary scholarly research',
-          methodologicalFocus: 'rigorous academic methodology with peer review emphasis',
-          now: new Date().toISOString()
-        },
-        { messages }
-      );
+      // 4. Extract research query from user message
+      const userQuery = this.extractResearchQuery(userMessage);
 
-      // 5. Parse academic research findings from response
-      const academicFindings = this.parseAcademicFindings(response.text);
+      // 5. Perform comprehensive academic research
+      const researchResults = await this.performAcademicResearch(userQuery, taskId, contextId, eventBus);
 
-      // 6. Publish status update with research results
-      const statusUpdate: TaskStatusUpdateEvent = {
-        kind: 'status-update',
-        taskId: taskId,
-        contextId: contextId,
-        status: {
-          state: 'working',
-          message: {
-            kind: 'message',
-            role: 'agent',
-            messageId: uuidv4(),
-            parts: [{
-              kind: 'text',
-              text: `Academic research completed. Analyzed ${academicFindings?.scholarlyFindings?.length || 0} research areas from ${academicFindings?.metadata?.totalPublications || 0} publications`
-            }],
-            taskId: taskId,
-            contextId: contextId,
-          },
-          timestamp: new Date().toISOString(),
-        },
-        final: false,
-      };
-      eventBus.publish(statusUpdate);
-
-      // Check if cancelled
-      if (this.cancelledTasks.has(taskId)) {
-        console.log(`[AcademicResearchAgentExecutor] Request cancelled for task: ${taskId}`);
-        const cancelledUpdate: TaskStatusUpdateEvent = {
-          kind: 'status-update',
-          taskId: taskId,
-          contextId: contextId,
-          status: {
-            state: 'canceled',
-            message: {
-              kind: 'message',
-              role: 'agent',
-              messageId: uuidv4(),
-              parts: [{ kind: 'text', text: 'Academic research cancelled.' }],
-              taskId: taskId,
-              contextId: contextId,
-            },
-            timestamp: new Date().toISOString(),
-          },
-          final: true,
-        };
-        eventBus.publish(cancelledUpdate);
-        return;
-      }
-
-      // 7. Complete the research task
-      const completionUpdate: TaskStatusUpdateEvent = {
+      // 6. Publish success status with findings
+      const successUpdate: TaskStatusUpdateEvent = {
         kind: 'status-update',
         taskId: taskId,
         contextId: contextId,
@@ -230,10 +181,7 @@ class AcademicResearchAgentExecutor implements AgentExecutor {
             kind: 'message',
             role: 'agent',
             messageId: uuidv4(),
-            parts: [{
-              kind: 'text',
-              text: `Academic research completed successfully. Average impact factor: ${academicFindings?.metadata?.averageImpactFactor || 'N/A'}`
-            }],
+            parts: [{ kind: 'text', text: 'Academic research completed successfully.' }],
             taskId: taskId,
             contextId: contextId,
           },
@@ -241,7 +189,28 @@ class AcademicResearchAgentExecutor implements AgentExecutor {
         },
         final: true,
       };
-      eventBus.publish(completionUpdate);
+      eventBus.publish(successUpdate);
+
+      // 7. Publish artifacts with research findings
+      if (researchResults) {
+        const artifact: Task = {
+          kind: 'task',
+          id: `${taskId}-findings`,
+          contextId: contextId,
+          status: {
+            state: 'completed',
+            timestamp: new Date().toISOString(),
+          },
+          history: [],
+          metadata: {
+            type: 'research-findings',
+            researchId: researchId,
+            findings: researchResults
+          },
+          artifacts: [],
+        };
+        eventBus.publish(artifact);
+      }
 
     } catch (error) {
       console.error(`[AcademicResearchAgentExecutor] Error processing task ${taskId}:`, error);
@@ -313,6 +282,163 @@ class AcademicResearchAgentExecutor implements AgentExecutor {
         }
       };
     }
+  }
+
+  /**
+   * Extract research query from user message
+   */
+  private extractResearchQuery(userMessage: any): string {
+    // Extract text content from message parts
+    const textParts = userMessage.parts?.filter((p: any) => p.kind === 'text') || [];
+    const query = textParts.map((p: any) => p.text).join(' ').trim();
+
+    if (!query) {
+      throw new Error('No research query found in user message');
+    }
+
+    return query;
+  }
+
+  /**
+   * Perform comprehensive academic research
+   */
+  private async performAcademicResearch(
+    query: string,
+    taskId: string,
+    contextId: string,
+    eventBus: ExecutionEventBus
+  ): Promise<ResearchResult> {
+    try {
+      // Update status to show research in progress
+      const progressUpdate: TaskStatusUpdateEvent = {
+        kind: 'status-update',
+        taskId: taskId,
+        contextId: contextId,
+        status: {
+          state: 'working',
+          message: {
+            kind: 'message',
+            role: 'agent',
+            messageId: uuidv4(),
+            parts: [{ kind: 'text', text: 'Searching academic databases and scholarly sources...' }],
+            taskId: taskId,
+            contextId: contextId,
+          },
+          timestamp: new Date().toISOString(),
+        },
+        final: false,
+      };
+      eventBus.publish(progressUpdate);
+
+      // Perform comprehensive academic search
+      const searchResults = await this.academicSearch.comprehensiveSearch(query, { limit: 15 });
+
+      // Update progress
+      const analysisUpdate: TaskStatusUpdateEvent = {
+        kind: 'status-update',
+        taskId: taskId,
+        contextId: contextId,
+        status: {
+          state: 'working',
+          message: {
+            kind: 'message',
+            role: 'agent',
+            messageId: uuidv4(),
+            parts: [{ kind: 'text', text: 'Analyzing and synthesizing academic findings...' }],
+            taskId: taskId,
+            contextId: contextId,
+          },
+          timestamp: new Date().toISOString(),
+        },
+        final: false,
+      };
+      eventBus.publish(analysisUpdate);
+
+      // Synthesize findings
+      return this.synthesizeAcademicFindings(query, searchResults);
+
+    } catch (error) {
+      console.error('Academic research failed:', error);
+      throw new Error(`Academic research failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Synthesize findings from academic search results
+   */
+  private synthesizeAcademicFindings(
+    query: string,
+    searchResults: ComprehensiveSearchResult
+  ): ResearchResult {
+    const findings: ResearchFinding[] = [];
+    const sources: SourceCitation[] = [];
+
+    // Process academic papers
+    searchResults.papers.forEach((paper, index) => {
+      findings.push({
+        claim: paper.title,
+        evidence: paper.snippet || `Academic paper by ${paper.authors.join(', ')}${paper.year ? ` (${paper.year})` : ''}`,
+        confidence: this.calculateAcademicConfidence(paper),
+        sources: [sources.length],
+        category: 'factual'
+      });
+
+      sources.push({
+        url: paper.pdfLink || `https://scholar.google.com/scholar?q=${encodeURIComponent(paper.title)}`,
+        title: paper.title,
+        author: paper.authors.join(', '),
+        publicationDate: paper.year ? new Date(paper.year, 0) : undefined,
+        credibilityScore: 0.9, // Academic papers generally have high credibility
+        type: 'academic',
+        accessedAt: new Date()
+      });
+    });
+
+    return {
+      topic: query,
+      findings,
+      sources,
+      methodology: 'Comprehensive academic search across Google Scholar, arXiv, and Semantic Scholar',
+      confidence: this.calculateOverallAcademicConfidence(findings),
+      generatedAt: new Date(),
+      processingTime: 0 // Would track actual processing time
+    };
+  }
+
+  /**
+   * Calculate confidence score for an academic paper
+   */
+  private calculateAcademicConfidence(paper: any): number {
+    let confidence = 0.7; // Base confidence for academic papers
+
+    // Higher confidence for papers with more citations
+    if (paper.citationCount && paper.citationCount > 0) {
+      confidence += Math.min(0.2, paper.citationCount / 100);
+    }
+
+    // Higher confidence for recent papers
+    if (paper.year && paper.year >= 2020) {
+      confidence += 0.1;
+    }
+
+    // Higher confidence for arXiv papers (preprints)
+    if (paper.source === 'arxiv') {
+      confidence += 0.05;
+    }
+
+    return Math.min(1.0, confidence);
+  }
+
+  /**
+   * Calculate overall confidence for academic findings
+   */
+  private calculateOverallAcademicConfidence(findings: ResearchFinding[]): number {
+    if (findings.length === 0) {
+      return 0;
+    }
+
+    const totalConfidence = findings.reduce((sum, finding) => sum + finding.confidence, 0);
+    return totalConfidence / findings.length;
   }
 }
 

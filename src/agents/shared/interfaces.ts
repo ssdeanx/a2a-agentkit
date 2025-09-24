@@ -230,3 +230,36 @@ export interface ResearchDimension {
   relevance: number; // 0-1
   priority: 'high' | 'medium' | 'low';
 }
+
+export interface SynthesisResult {
+  id: string;
+  researchId: string;
+  synthesis: string; // The comprehensive narrative synthesis
+  keyFindings: Array<{
+    dimension: string;
+    finding: string;
+    confidence: number;
+    validationStatus: 'confirmed' | 'partially-confirmed' | 'unconfirmed' | 'contradicted';
+    supportingSources: string[];
+    contradictingSources?: string[];
+    consensusLevel: number;
+  }>;
+  confidenceMetrics: {
+    overallConfidence: number;
+    sourceDiversity: number;
+    validationRate: number;
+    contradictionRate: number;
+  };
+  gapsAndRecommendations: {
+    knowledgeGaps: string[];
+    methodologicalLimitations: string[];
+    recommendations: string[];
+  };
+  sourceSummary: {
+    totalSources: number;
+    sourceTypes: Record<string, number>;
+    topSources: Array<{source: string, contributionCount: number}>;
+  };
+  generatedAt: Date;
+  version: string;
+}
