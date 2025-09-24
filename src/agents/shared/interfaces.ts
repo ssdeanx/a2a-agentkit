@@ -263,3 +263,39 @@ export interface SynthesisResult {
   generatedAt: Date;
   version: string;
 }
+
+// Orchestration-specific interfaces
+export interface OrchestrationDecision {
+  researchId: string;
+  timestamp: string; // ISO-8601
+  currentPhase: ResearchPhase;
+  activeTasks: Array<{
+    taskId: string;
+    agentType: AgentType;
+    description: string;
+    priority: number; // 1-5
+    estimatedDuration: number; // minutes
+  }>;
+  completedTasks: string[]; // task IDs
+  issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    description: string;
+    affectedTasks: string[];
+    resolution?: string;
+  }>;
+  progressMetrics: {
+    completedSteps: number;
+    totalSteps: number;
+    estimatedTimeRemaining: number; // minutes
+    overallConfidence: number; // 0-1
+    qualityScore: number; // 0-1
+  };
+  nextActions: Array<{
+    action: 'assign-task' | 'monitor-progress' | 'activate-contingency' | 'synthesis-data' | 'complete-research';
+    description: string;
+    priority: number; // 1-5
+    estimatedImpact: string;
+    parameters?: Record<string, any>;
+  }>;
+}

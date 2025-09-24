@@ -1,4 +1,4 @@
-import { ResearchStepResult, SourceCitation, OrchestrationState, ResearchFinding, ResearchResult } from '../shared/interfaces.js';
+import type { ResearchStepResult, SourceCitation, OrchestrationState, ResearchFinding, ResearchResult } from '../shared/interfaces.js';
 
 /**
  * Result Aggregation System for the Orchestrator Agent
@@ -152,27 +152,27 @@ export class ResultAggregator {
     for (const result of results) {
       // Extract structured findings from result data
       if (result.data && typeof result.data === 'object') {
-        const data = result.data as any;
+        const data = result.data;
 
         if (data.findings && Array.isArray(data.findings)) {
           data.findings.forEach((finding: any, index: number) => {
             allFindings.push({
-              claim: finding.claim || finding.statement || `Finding ${index + 1}`,
-              evidence: finding.evidence || finding.explanation || '',
-              confidence: finding.confidence || result.qualityScore,
-              sourceIndices: finding.sourceIndices || [],
-              category: finding.category || 'factual',
+              claim: finding.claim ?? finding.statement ?? `Finding ${index + 1}`,
+              evidence: finding.evidence ?? finding.explanation ?? '',
+              confidence: finding.confidence ?? result.qualityScore,
+              sourceIndices: finding.sourceIndices ?? [],
+              category: finding.category ?? 'factual',
               stepId: result.stepId
             });
           });
         } else if (data.claim || data.statement) {
           // Single finding in result
           allFindings.push({
-            claim: data.claim || data.statement,
-            evidence: data.evidence || data.explanation || '',
-            confidence: data.confidence || result.qualityScore,
-            sourceIndices: data.sourceIndices || [],
-            category: data.category || 'factual',
+            claim: data.claim ?? data.statement,
+            evidence: data.evidence ?? data.explanation ?? '',
+            confidence: data.confidence ?? result.qualityScore,
+            sourceIndices: data.sourceIndices ?? [],
+            category: data.category ?? 'factual',
             stepId: result.stepId
           });
         }
@@ -449,7 +449,7 @@ export class ResultAggregator {
    * Generate methodology summary from plan and results
    */
   private generateMethodologySummary(plan: any, results: ResearchStepResult[]): string {
-    const approach = plan.methodology?.approach || 'systematic';
+    const approach = plan.methodology?.approach ?? 'systematic';
     const agentTypes = [...new Set(results.map(r => r.stepId.split('-')[1]))]; // Extract agent types from step IDs
 
     return `This research used a ${approach} approach, combining data from ${agentTypes.length} different agent types: ${agentTypes.join(', ')}. The methodology included ${plan.executionSteps?.length || 0} distinct research steps with quality validation and source verification.`;
@@ -561,6 +561,6 @@ export class ResultAggregator {
    * Get cached results for a research project
    */
   getCachedResults(researchId: string): ResearchStepResult[] | null {
-    return this.resultCache.get(researchId) || null;
+    return this.resultCache.get(researchId) ?? null;
   }
 }

@@ -22,8 +22,13 @@ import {
   OrchestrationState,
   ResearchPlan,
   ResearchStepExecution,
-  OrchestrationIssue
+  OrchestrationIssue,
+  OrchestrationDecision,
+  ResearchStep,
+  AgentType
 } from "../shared/interfaces.js";
+import { TaskDelegator } from "./task-delegator.js";
+import { A2ACommunicationManager } from "./a2a-communication.js";
 
 if (!process.env.GEMINI_API_KEY) {
   console.error("GEMINI_API_KEY environment variable not set.");
@@ -39,6 +44,13 @@ const orchestratorPrompt = ai.prompt('orchestrator');
 class OrchestratorAgentExecutor implements AgentExecutor {
   private cancelledTasks = new Set<string>();
   private researchStates = new Map<string, OrchestrationState>();
+  private taskDelegator: TaskDelegator;
+  private a2aManager: A2ACommunicationManager;
+
+  constructor(taskDelegator: TaskDelegator, a2aManager: A2ACommunicationManager) {
+    this.taskDelegator = taskDelegator;
+    this.a2aManager = a2aManager;
+  }
 
   public cancelTask = async (
     taskId: string,

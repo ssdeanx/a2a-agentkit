@@ -1,4 +1,4 @@
-import { ResearchStepResult, OrchestrationState, SynthesisResult } from '../shared/interfaces.js';
+import type { ResearchStepResult, OrchestrationState, SynthesisResult } from '../shared/interfaces.js';
 
 /**
  * Synthesis Engine for the Orchestrator Agent
@@ -147,24 +147,24 @@ export class SynthesisEngine {
     // Try different ways to extract findings from the result data
     if (typeof result.data === 'object' && result.data !== null) {
       // Check if data has findings array
-      if (Array.isArray((result.data as any).findings)) {
-        return (result.data as any).findings;
+      if (Array.isArray((result.data).findings)) {
+        return (result.data).findings;
       }
 
       // Check if data has results array with findings
-      if (Array.isArray((result.data as any).results)) {
-        const { results } = result.data as any;
-        return results.flatMap((r: any) => r.findings || []);
+      if (Array.isArray((result.data).results)) {
+        const { results } = result.data;
+        return results.flatMap((r: any) => r.findings ?? []);
       }
 
       // Check if data itself is a finding
-      if ((result.data as any).claim) {
-        return [result.data as any];
+      if ((result.data).claim) {
+        return [result.data];
       }
 
       // Try to extract from text content
-      if (typeof (result.data as any).content === 'string') {
-        return this.extractFindingsFromText((result.data as any).content);
+      if (typeof (result.data).content === 'string') {
+        return this.extractFindingsFromText((result.data).content);
       }
     }
 
@@ -233,10 +233,10 @@ export class SynthesisEngine {
       const contradictions = this.findContradictions(finding.finding, allResults);
 
       // Calculate consensus level (sources agreeing / total relevant sources)
-      const relevantSources = allResults.filter(r => {
-        const resultDimension = r.metadata?.dimension || 'general';
+      const relevantSources = allResults.filter((r): boolean => {
+        const resultDimension = r.metadata?.dimension ?? 'general';
         const resultContent = typeof r.data === 'string' ? r.data :
-                            (r.data as any)?.content || JSON.stringify(r.data);
+                            (r.data)?.content ?? JSON.stringify(r.data);
         return resultDimension === finding.dimension ||
                resultContent.toLowerCase().includes(finding.finding.toLowerCase().split(' ')[0]);
       });
@@ -278,7 +278,7 @@ export class SynthesisEngine {
     for (const result of results) {
       // Get content from result data
       const content = typeof result.data === 'string' ? result.data :
-                     (result.data as any)?.content || JSON.stringify(result.data);
+                     (result.data)?.content ?? JSON.stringify(result.data);
       const contentLower = content.toLowerCase();
 
       // Check for direct contradictions
@@ -402,7 +402,7 @@ ${sortedFindings.map(finding => {
     'partially-confirmed': '⚠️',
     'unconfirmed': '❓',
     'contradicted': '❌'
-  }[finding.validationStatus] || '❓';
+  }[finding.validationStatus] ?? '❓';
 
   return `${statusIcon} **${finding.finding}**
    - **Confidence**: ${(finding.confidence * 100).toFixed(1)}%
@@ -424,8 +424,8 @@ ${sortedFindings.map(finding => {
       result.sources.forEach(source => sourceTypes.add(source.type));
 
       // Get agent type from metadata or stepId pattern
-      const agentType = result.metadata?.agentType ||
-                       result.stepId.split('-')[0] || 'unknown';
+      const agentType = (result.metadata?.agentType ??
+                       result.stepId.split('-')[0]) ?? 'unknown';
       agentTypes.add(agentType);
     }
 
@@ -623,9 +623,9 @@ ${this.generateResearchRecommendations(findings, objectives)}
 
     // Check for objective coverage gaps
     for (const objective of objectives) {
-      const relevantResults = results.filter(r => {
+      const relevantResults = results.filter((r): boolean => {
         const content = typeof r.data === 'string' ? r.data :
-                       (r.data as any)?.content || JSON.stringify(r.data);
+                       (r.data)?.content ?? JSON.stringify(r.data);
         return content.toLowerCase().includes(objective.toLowerCase().split(' ')[0]);
       });
 

@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "es2022",
-
     "module": "NodeNext",
     "strict": true,
     "skipLibCheck": true,
@@ -11,5 +10,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "eslint.config.js", "prettier.config.js", "genkit.config.ts"]
 }

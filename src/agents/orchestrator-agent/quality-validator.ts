@@ -1,4 +1,4 @@
-import { ResearchStepResult, SourceCitation, ResearchFinding, OrchestrationState, QualityThreshold } from '../shared/interfaces.js';
+import type { ResearchStepResult, SourceCitation, ResearchFinding, OrchestrationState, QualityThreshold } from '../shared/interfaces.js';
 
 /**
  * Quality Validation System for the Orchestrator Agent

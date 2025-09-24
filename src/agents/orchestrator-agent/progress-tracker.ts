@@ -1,4 +1,4 @@
-import { OrchestrationState, ResearchStepExecution, ProgressUpdate, ResearchStepResult } from '../shared/interfaces.js';
+import type { OrchestrationState, ResearchStepExecution, ProgressUpdate, ResearchStepResult } from '../shared/interfaces.js';
 
 /**
  * Progress Tracking System for the Orchestrator Agent
