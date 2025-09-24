@@ -1,4 +1,4 @@
-import { A2AMessage, TaskRequest, TaskResponse, AgentType } from '../shared/interfaces.js';
+import type { A2AMessage, TaskRequest, TaskResponse, AgentType } from '../shared/interfaces.js';
 
 /**
  * A2A Communication Manager for orchestrating inter-agent messaging
@@ -16,10 +16,10 @@ export class A2ACommunicationManager {
 
   private initializeAgentEndpoints(): void {
     // These would typically come from environment variables or service discovery
-    this.agentEndpoints.set('web-research', process.env.WEB_RESEARCH_AGENT_URL || 'http://localhost:41246');
-    this.agentEndpoints.set('academic-research', process.env.ACADEMIC_RESEARCH_AGENT_URL || 'http://localhost:41247');
-    this.agentEndpoints.set('news-research', process.env.NEWS_RESEARCH_AGENT_URL || 'http://localhost:41248');
-    this.agentEndpoints.set('data-analysis', process.env.DATA_ANALYSIS_AGENT_URL || 'http://localhost:41249');
+    this.agentEndpoints.set('web-research', process.env.WEB_RESEARCH_AGENT_URL ?? 'http://localhost:41246');
+    this.agentEndpoints.set('academic-research', process.env.ACADEMIC_RESEARCH_AGENT_URL ?? 'http://localhost:41247');
+    this.agentEndpoints.set('news-research', process.env.NEWS_RESEARCH_AGENT_URL ?? 'http://localhost:41248');
+    this.agentEndpoints.set('data-analysis', process.env.DATA_ANALYSIS_AGENT_URL ?? 'http://localhost:41249');
   }
 
   /**
@@ -35,7 +35,7 @@ export class A2ACommunicationManager {
     this.pendingTasks.set(taskRequest.taskId, taskRequest);
 
     // Set timeout for task completion
-    const timeout = taskRequest.timeout || 300000; // 5 minutes default
+    const timeout = taskRequest.timeout ?? 300000; // 5 minutes default
     const timeoutHandle = setTimeout(() => {
       this.handleTaskTimeout(taskRequest.taskId);
     }, timeout);

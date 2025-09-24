@@ -1,5 +1,6 @@
-import { OrchestrationState, ResearchStepExecution, TaskResponse, A2AMessage } from '../shared/interfaces.js';
-import { TaskDelegator } from './task-delegator.js';
+import type { OrchestrationState, A2AMessage } from '../shared/interfaces.js';
+import { ResearchStepExecution, TaskResponse } from '../shared/interfaces.js';
+import type { TaskDelegator } from './task-delegator.js';
 
 /**
  * Message Router for the Orchestrator Agent
@@ -205,22 +206,22 @@ export class MessageRouter {
   private evaluateCondition(condition: RoutingCondition, orchestrationState: OrchestrationState): boolean {
     switch (condition.type) {
       case 'step-status':
-        const step = orchestrationState.activeSteps.find(e => e.stepId === condition.stepId);
-        return step?.status === condition.expectedStatus;
+        { const step = orchestrationState.activeSteps.find(e => e.stepId === condition.stepId);
+        return step?.status === condition.expectedStatus; }
 
       case 'agent-availability':
-        if (!condition.agentId) {
+        { if (!condition.agentId) {
           return false;
         }
         const agent = this.agentRegistry.get(condition.agentId);
-        return agent?.status === 'active';
+        return agent?.status === 'active'; }
 
       case 'load-threshold':
-        if (!condition.agentId || condition.threshold === undefined) {
+        { if (!condition.agentId || condition.threshold === undefined) {
           return false;
         }
         const load = this.getAgentLoad(condition.agentId);
-        return load < condition.threshold;
+        return load < condition.threshold; }
 
       default:
         return true;
@@ -370,7 +371,7 @@ export class MessageRouter {
   /**
    * Clean up inactive agents
    */
-  cleanupInactiveAgents(maxAge: number = 300000): void { // 5 minutes default
+  cleanupInactiveAgents(maxAge = 300000): void { // 5 minutes default
     const now = Date.now();
     for (const [agentId, agent] of this.agentRegistry.entries()) {
       if (now - agent.lastSeen.getTime() > maxAge) {

@@ -1,5 +1,6 @@
-import { OrchestrationState, OrchestrationIssue, ResearchStepExecution, TaskResponse } from '../shared/interfaces.js';
-import { TaskDelegator } from './task-delegator.js';
+import type { OrchestrationState, OrchestrationIssue, ResearchStepExecution} from '../shared/interfaces.js';
+import { TaskResponse } from '../shared/interfaces.js';
+import type { TaskDelegator } from './task-delegator.js';
 
 /**
  * Error Recovery System for the Orchestrator Agent
@@ -26,7 +27,7 @@ export class ErrorRecovery {
     issue?: OrchestrationIssue;
   }> {
     const failureType = this.classifyFailure(error);
-    const retryCount = this.retryAttempts.get(stepId) || 0;
+    const retryCount = this.retryAttempts.get(stepId) ?? 0;
 
     // Check if we've exceeded maximum retries
     if (retryCount >= this.getMaxRetries(failureType)) {
@@ -57,8 +58,8 @@ export class ErrorRecovery {
    * Classify the type of failure based on error characteristics
    */
   private classifyFailure(error: any): 'temporary' | 'rate-limit' | 'agent-unavailable' | 'data-quality' | 'critical' {
-    const errorMessage = error?.message?.toLowerCase() || '';
-    const errorCode = error?.code || error?.status;
+    const errorMessage = error?.message?.toLowerCase() ?? '';
+    const errorCode = error?.code ?? error?.status;
 
     // Network and temporary errors
     if (errorCode === 'ECONNRESET' || errorCode === 'ETIMEDOUT' || errorCode === 'ENOTFOUND') {
@@ -66,22 +67,22 @@ export class ErrorRecovery {
     }
 
     // Rate limiting
-    if (errorCode === 429 || errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
+    if (errorCode === 429 || (Boolean(errorMessage.includes('rate limit'))) || (Boolean(errorMessage.includes('quota')))) {
       return 'rate-limit';
     }
 
     // Agent unavailable
-    if (errorCode === 503 || errorMessage.includes('service unavailable') || errorMessage.includes('agent unavailable')) {
+    if (errorCode === 503 || (Boolean(errorMessage.includes('service unavailable'))) || (Boolean(errorMessage.includes('agent unavailable')))) {
       return 'agent-unavailable';
     }
 
     // Data quality issues
-    if (errorMessage.includes('invalid data') || errorMessage.includes('malformed') || errorMessage.includes('quality')) {
+    if ((Boolean(errorMessage.includes('invalid data'))) || (Boolean(errorMessage.includes('malformed'))) || (Boolean(errorMessage.includes('quality')))) {
       return 'data-quality';
     }
 
     // Authentication and permission errors
-    if (errorCode === 401 || errorCode === 403 || errorMessage.includes('unauthorized') || errorMessage.includes('forbidden')) {
+    if (errorCode === 401 || errorCode === 403 || (Boolean(errorMessage.includes('unauthorized'))) || (Boolean(errorMessage.includes('forbidden')))) {
       return 'critical';
     }
 
@@ -303,7 +304,7 @@ export class ErrorRecovery {
     issue?: OrchestrationIssue;
   }> {
     const step = orchestrationState.plan.executionSteps.find(s => s.id === stepId);
-    const hasFallback = step && step.fallbackStrategies && step.fallbackStrategies.length > 0;
+    const hasFallback = step?.fallbackStrategies && step.fallbackStrategies.length > 0;
 
     if (hasFallback && failureType !== 'critical') {
       // Try fallback strategy
@@ -423,7 +424,7 @@ export class ErrorRecovery {
     // A simple heuristic: steps with high priority or many dependencies
     const step = orchestrationState.plan.executionSteps.find(s => s.id === stepId);
 
-    if (!step) return false;
+    if (!step) {return false;}
 
     const dependentCount = this.findDependentSteps(stepId, orchestrationState).length;
     const hasHighPriority = step.priority >= 4;
@@ -447,7 +448,7 @@ export class ErrorRecovery {
       type,
       severity,
       description,
-      affectedSteps: affectedSteps || [stepId],
+      affectedSteps: affectedSteps ?? [stepId],
       resolution,
       createdAt: new Date()
     };
@@ -462,8 +463,8 @@ export class ErrorRecovery {
     inProgress: boolean;
   } {
     return {
-      retryCount: this.retryAttempts.get(stepId) || 0,
-      backoffDelay: this.backoffDelays.get(stepId) || 0,
+      retryCount: this.retryAttempts.get(stepId) ?? 0,
+      backoffDelay: this.backoffDelays.get(stepId) ?? 0,
       inProgress: this.recoveryInProgress.has(stepId)
     };
   }
