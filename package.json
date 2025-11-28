@@ -32,7 +32,7 @@
     "@genkit-ai/vertexai": "^1.19.3",
     "@libsql/client": "^0.15.15",
     "@libsql/core": "^0.15.15",
-    "body-parser": "^2.2.0",
+    "body-parser": "^2.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
