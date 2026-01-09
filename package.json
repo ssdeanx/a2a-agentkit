@@ -28,7 +28,7 @@
     "@a2a-js/sdk": "^0.3.4",
     "@genkit-ai/googleai": "^1.19.3",
     "@genkit-ai/telemetry-server": "^1.19.3",
-    "@genkit-ai/tools-common": "^1.19.3",
+    "@genkit-ai/tools-common": "^1.26.0",
     "@genkit-ai/vertexai": "^1.19.3",
     "@libsql/client": "^0.15.15",
     "@libsql/core": "^0.15.15",
