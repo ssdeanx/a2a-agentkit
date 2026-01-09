@@ -36,7 +36,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "firebase": "^12.3.0",
+    "firebase": "^12.7.0",
     "prettier": "^3.6.2",
     "prisma": "^6.16.2",
     "serpapi": "^2.2.1",
