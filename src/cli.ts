@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import readline from "node:readline";
+
 import crypto from "node:crypto";
 
 import {
@@ -25,6 +26,30 @@ const colors = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
   dim: "\x1b[2m",
+program
+  .command('register-nautilus')
+  .description('Register agent to the Nautilus platform')
+  .option('-n, --name <name>', 'Agent name', 'a2a-agentkit-coder')
+  .option('-e, --endpoint <url>', 'A2A endpoint', 'http://localhost:41242/.well-known/agent-card.json')
+  .action(async (options) => {
+    const payload = {
+      name: options.name,
+      capabilities: ['code-generation', 'file-creation'],
+      a2a_endpoint: options.endpoint
+    };
+    console.log(`Registering ${options.name} on Nautilus...`);
+    try {
+      const res = await fetch('https://api.nautilus.platform/agents/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      console.log(`Registration response: ${res.status}`);
+    } catch (err) {
+      console.error('Registration failed:', err);
+    }
+  });
+
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
