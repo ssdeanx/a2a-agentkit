@@ -20,12 +20,24 @@ import {
   Part, // Added for explicit Part typing
 } from "@a2a-js/sdk";
 import { A2AClient } from "@a2a-js/sdk/client";
+import { Command } from "commander";
 
 // --- ANSI Colors ---
 const colors = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
   dim: "\x1b[2m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  magenta: "\x1b[35m",
+  cyan: "\x1b[36m",
+  gray: "\x1b[90m",
+};
+// --- CLI Commands ---
+const program = new Command();
+
 program
   .command('register-nautilus')
   .description('Register agent to the Nautilus platform')
@@ -50,14 +62,12 @@ program
     }
   });
 
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan: "\x1b[36m",
-  gray: "\x1b[90m",
-};
+// Parse CLI args if register-nautilus is invoked; otherwise fall through to interactive mode
+if (process.argv.includes('register-nautilus')) {
+  program.parse(process.argv);
+  process.exit(0);
+}
+
 
 // --- Helper Functions ---
 function colorize(color: keyof typeof colors, text: string): string {
