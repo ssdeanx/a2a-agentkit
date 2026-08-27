@@ -56,9 +56,20 @@ program
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      console.log(`Registration response: ${res.status}`);
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => '<unreadable body>');
+        console.error(`Registration failed: HTTP ${res.status} ${res.statusText}`);
+        console.error(`Response body: ${errorBody}`);
+        process.exit(1);
+      }
+      const result = await res.json().catch(() => null);
+      console.log(`Registration successful (HTTP ${res.status})`);
+      if (result) {
+        console.log(JSON.stringify(result, null, 2));
+      }
     } catch (err) {
       console.error('Registration failed:', err);
+      process.exit(1);
     }
   });
 
