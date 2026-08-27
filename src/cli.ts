@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import readline from "node:readline";
+
 import crypto from "node:crypto";
 
 import {
@@ -19,6 +20,7 @@ import {
   Part, // Added for explicit Part typing
 } from "@a2a-js/sdk";
 import { A2AClient } from "@a2a-js/sdk/client";
+import { Command } from "commander";
 
 // --- ANSI Colors ---
 const colors = {
@@ -33,6 +35,50 @@ const colors = {
   cyan: "\x1b[36m",
   gray: "\x1b[90m",
 };
+// --- CLI Commands ---
+const program = new Command();
+
+program
+  .command('register-nautilus')
+  .description('Register agent to the Nautilus platform')
+  .option('-n, --name <name>', 'Agent name', 'a2a-agentkit-coder')
+  .option('-e, --endpoint <url>', 'A2A endpoint', 'http://localhost:41242/.well-known/agent-card.json')
+  .action(async (options) => {
+    const payload = {
+      name: options.name,
+      capabilities: ['code-generation', 'file-creation'],
+      a2a_endpoint: options.endpoint
+    };
+    console.log(`Registering ${options.name} on Nautilus...`);
+    try {
+      const res = await fetch('https://api.nautilus.platform/agents/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => '<unreadable body>');
+        console.error(`Registration failed: HTTP ${res.status} ${res.statusText}`);
+        console.error(`Response body: ${errorBody}`);
+        process.exit(1);
+      }
+      const result = await res.json().catch(() => null);
+      console.log(`Registration successful (HTTP ${res.status})`);
+      if (result) {
+        console.log(JSON.stringify(result, null, 2));
+      }
+    } catch (err) {
+      console.error('Registration failed:', err);
+      process.exit(1);
+    }
+  });
+
+// Parse CLI args if register-nautilus is invoked; otherwise fall through to interactive mode
+if (process.argv.includes('register-nautilus')) {
+  program.parse(process.argv);
+  process.exit(0);
+}
+
 
 // --- Helper Functions ---
 function colorize(color: keyof typeof colors, text: string): string {
